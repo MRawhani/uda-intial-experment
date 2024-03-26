@@ -4,7 +4,7 @@ from sklearn.metrics import accuracy_score, f1_score,precision_recall_fscore_sup
 import numpy as np
 from transformers import TrainingArguments, EvalPrediction,default_data_collator
 from adapters import AdapterTrainer
-
+from transformers import EvalPrediction
 import collections
 
 
@@ -47,9 +47,9 @@ def train_model(model,prepended_path,train_data, eval_data=None):
     training_args = TrainingArguments(
         
         output_dir=f"{Config.RESULTS_SAVE_PATH}/{prepended_path}/results",                 # Where to store the output (checkpoints and predictions)
-        num_train_epochs=10,                     # Total number of training epochs
+        num_train_epochs=4,                     # Total number of training epochs
         per_device_train_batch_size=32,         # Batch size for training
-        per_device_eval_batch_size=64,          # Batch size for evaluation
+        per_device_eval_batch_size=32,          # Batch size for evaluation
         warmup_steps=500,                       # Number of warmup steps for learning rate scheduler
         learning_rate=1e-4,
         weight_decay=0.01,                      # Strength of weight decay
@@ -82,6 +82,58 @@ def train_model(model,prepended_path,train_data, eval_data=None):
         eval_dataset=eval_data if eval_data is not None else None,
         compute_metrics=compute_metrics if eval_data is not None else None    )
     trainer.train()
+    return trainer
+
+def train_mlm_model(model,prepended_path,collator, tokenizer,train_data, eval_data=None):
+    batch_size = 32
+
+    logging_steps = len(train_data) // batch_size
+
+    training_args = TrainingArguments(
+        
+        output_dir=f"{Config.RESULTS_SAVE_PATH}/{prepended_path}/results",                 # Where to store the output (checkpoints and predictions)
+        num_train_epochs=10,                     # Total number of training epochs
+        per_device_train_batch_size=batch_size,         # Batch size for training
+        per_device_eval_batch_size=batch_size,          # Batch size for evaluation
+        warmup_steps=500,                       # Number of warmup steps for learning rate scheduler
+        learning_rate=1e-4,
+        weight_decay=0.01,                      # Strength of weight decay
+        logging_dir=f"{Config.RESULTS_SAVE_PATH}/{prepended_path}/logs",                   # Directory for storing logs
+        logging_steps=logging_steps,                       # Log every X updates steps
+        evaluation_strategy="epoch" if eval_data is not None else "no",            # Evaluate model every X steps
+        save_strategy="epoch" if eval_data is not None else "no",            # Evaluate model every X steps
+        eval_steps=logging_steps,                         # Number of steps to perform evaluation
+        save_steps=logging_steps,                         # Save checkpoint every X steps
+        save_total_limit=2,                     # Limit the total amount of checkpoints
+        fp16=True,
+        metric_for_best_model="eval_loss",  # Use perplexity to determine the best model
+        load_best_model_at_end=True if eval_data is not None else False,            # Load the best model when finished training
+        #remove_unused_columns=False,#for collator word id
+
+        greater_is_better=False,                 # lower  perplexity is better
+        report_to="none"                        # Do not report to any online service
+    )
+    def compute_metrics(eval_pred: EvalPrediction):
+        logits, labels = eval_pred
+        # Flatten the output for cross-entropy
+        shift_logits = logits[..., :-1, :].contiguous()
+        shift_labels = labels[..., 1:].contiguous()
+        # Only compute loss on masked tokens
+        loss_fct = torch.nn.CrossEntropyLoss(reduction="sum")
+        loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+        # Calculate perplexity
+        perplexity = torch.exp(loss / shift_labels.ne(-100).sum())
+        return {"perplexity": perplexity.item()}
+    trainer = AdapterTrainer(
+        model=model,                           # The instantiated 🤗 Transformers model to be trained
+        args=training_args,                    # Training arguments, defined above
+        train_dataset=train_data,           # Training dataset
+        eval_dataset=eval_data if eval_data is not None else None,
+        data_collator=collator,
+        tokenizer=tokenizer,
+        # compute_metrics=compute_metrics
+            )
+    
     return trainer
 
 def group_texts(examples,chunk_size):
@@ -132,3 +184,4 @@ def whole_word_masking_data_collator(features,tokenizer):
         feature["labels"] = new_labels
 
     return default_data_collator(features)
+

@@ -74,4 +74,18 @@ def tokenize_and_load_datasets():
 
     return tokenized_data, loaded_data,unsupervised_target
 
-    
+def tokenize_dataset(data,tokenizer):
+    def tokenize_function(examples):
+        result = tokenizer(examples['premise'], examples['hypothesis']) # no trunccation or padding cuz it is mlm
+        if tokenizer.is_fast:
+            result["word_ids"] = [result.word_ids(i) for i in range(len(result["input_ids"]))]
+        return result
+
+
+    # Use batched=True to activate fast multithreading!
+    tokenized_datasets = data.map(
+        tokenize_function, batched=True,
+    )
+    tokenized_datasets = tokenized_datasets.remove_columns(['promptID', 'pairID', 'premise', 'premise_binary_parse', 'premise_parse', 'hypothesis', 'hypothesis_binary_parse', 'hypothesis_parse', 'genre','label'])
+
+    return tokenized_datasets
