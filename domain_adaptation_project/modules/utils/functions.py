@@ -63,7 +63,7 @@ def train_model(model,prepended_path,train_data, eval_data=None):
         metric_for_best_model="accuracy",       # Use accuracy to find the best model
         greater_is_better=True,                 # Higher accuracy is better
         report_to="none"                        # Do not report to any online service
-    )
+    ) 
     def compute_metrics(pred):
         labels = pred.label_ids
         preds = pred.predictions.argmax(-1)
