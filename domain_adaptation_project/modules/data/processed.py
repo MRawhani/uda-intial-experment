@@ -27,7 +27,8 @@ def tokenize_and_load_datasets():
     shuffled_filtered_target = dataset['train'].filter(lambda example: example['genre'] == Config.TARGET_GENRE).shuffle(seed=42)
     # filtered_target = shuffled_filtered_target.select(range(Config.TARRGET_DATA_LEN)).train_test_split(test_size=0.1)
     filtered_target = shuffled_filtered_target.train_test_split(test_size=0.1)
-    unsupervised_target = shuffled_filtered_target.select(range(Config.TARRGET_DATA_LEN,shuffled_filtered_target.num_rows))
+    #unsupervised_target = shuffled_filtered_target.select(range(Config.TARRGET_DATA_LEN,shuffled_filtered_target.num_rows))
+    
    
     filtered_test_target = dataset['validation_matched'].filter(lambda example: example['genre'] == Config.TARGET_GENRE)
 
@@ -55,6 +56,11 @@ def tokenize_and_load_datasets():
     target_loader_test = DataLoader(tokenized_test_target, batch_size=Config.BATCH_SIZE, shuffle=True,drop_last=True)
 
     # Return tokenized datasets and DataLoaders
+    raw_data = {
+        'source': filtered_source,
+        'target': filtered_target,
+        'test_target': filtered_test_target,
+    }
     tokenized_data = {
         'source': tokenized_source,
         'eval_source': tokenized_eval_target,
@@ -72,7 +78,7 @@ def tokenize_and_load_datasets():
         'test_target_loader': target_loader_test,
     }
 
-    return tokenized_data, loaded_data,unsupervised_target
+    return tokenized_data, loaded_data,raw_data
 
 def tokenize_dataset(data,tokenizer):
     def tokenize_function(examples):
