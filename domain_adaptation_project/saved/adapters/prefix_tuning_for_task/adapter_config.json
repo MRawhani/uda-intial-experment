@@ -1,0 +1,21 @@
+{
+  "config": {
+    "architecture": "prefix_tuning",
+    "bottleneck_size": 512,
+    "cross_prefix": true,
+    "dropout": 0.0,
+    "encoder_prefix": true,
+    "flat": false,
+    "leave_out": [],
+    "non_linearity": "tanh",
+    "prefix_length": 30,
+    "shared_gating": true,
+    "use_gating": false
+  },
+  "hidden_size": 768,
+  "model_class": "DistilBertAdapterModel",
+  "model_name": "distilbert-base-uncased",
+  "model_type": "distilbert",
+  "name": "prefix_tuning_for_task",
+  "version": "0.1.2"
+}
